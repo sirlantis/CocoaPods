@@ -115,7 +115,12 @@ module Pod
         UI.message '- Linking headers' do
           pod_targets.each do |pod_target|
             pod_target.file_accessors.each do |file_accessor|
-              framework_exp = /\.framework\//
+              header_dir = file_accessor.spec_consumer.header_dir
+
+              rejector = lambda do |f|
+                !header_dir && f.to_path =~ %r{\.framework/}
+              end
+
               headers_sandbox = Pathname.new(file_accessor.spec.root.name)
 
               # When integrating Pod as frameworks, built Pods are built into
@@ -127,11 +132,11 @@ module Pod
                 sandbox.public_headers.add_search_path(headers_sandbox, pod_target.platform)
 
                 header_mappings(headers_sandbox, file_accessor, file_accessor.headers).each do |namespaced_path, files|
-                  pod_target.build_headers.add_files(namespaced_path, files.reject { |f| f.to_path =~ framework_exp })
+                  pod_target.build_headers.add_files(namespaced_path, files.reject(&rejector))
                 end
 
                 header_mappings(headers_sandbox, file_accessor, file_accessor.public_headers).each do |namespaced_path, files|
-                  sandbox.public_headers.add_files(namespaced_path, files.reject { |f| f.to_path =~ framework_exp })
+                  sandbox.public_headers.add_files(namespaced_path, files.reject(&rejector))
                 end
               end
 
